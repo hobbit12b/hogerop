@@ -313,8 +313,8 @@ document.documentElement.style.setProperty("--game-font-stack", DISPLAY_FONT_STA
 const GROUND_LAYER_SPEED = 0.46;
 const MOUNTAINS_LAYER_SPEED = 0.28;
 const CLOUDS_LAYER_SPEED = 0.18;
-const SPACE_START = 760;
-const STAR_FIELD_START = 760;
+const SPACE_START = 2200;
+const STAR_FIELD_START = 2400;
 const MAX_VISIBLE_SPACE_OBJECTS = 3;
 const BACKGROUND_MUSIC_BASE = "Sterrenvriendjes";
 const REPEAT_BUTTON_SRC = "herhaal-vraag.png";
@@ -1561,26 +1561,30 @@ function App() {
         };
 
         const drawSky = (s, climb) => {
-            const toSpace = smoothStep(0, 2600, climb);
-            const topColor = colorLerp("#02050b", "#000000", smoothStep(600, 2200, climb));
-            const midColor = colorLerp("#234a88", "#010205", smoothStep(150, 2300, climb));
-            const bottomColor = colorLerp("#7fd1ff", "#000000", toSpace);
+            const toSpace = smoothStep(1100, 5200, climb);
+            const topDarkness = smoothStep(1400, 4300, climb);
+            const midDarkness = smoothStep(1700, 4600, climb);
+            const bottomDarkness = smoothStep(2400, 5200, climb);
+
+            const topColor = colorLerp("#5a92e8", "#000000", topDarkness);
+            const midColor = colorLerp("#7ec8ff", "#02040a", midDarkness);
+            const bottomColor = colorLerp("#c8efff", "#000000", bottomDarkness);
 
             const skyGrad = ctx.createLinearGradient(0, 0, 0, s.height);
             skyGrad.addColorStop(0, topColor);
-            skyGrad.addColorStop(0.5, midColor);
+            skyGrad.addColorStop(0.52, midColor);
             skyGrad.addColorStop(1, bottomColor);
             ctx.fillStyle = skyGrad;
             ctx.fillRect(0, 0, s.width, s.height);
 
-            const horizonGlowAlpha = (1 - toSpace) * 0.2;
+            const horizonGlowAlpha = (1 - toSpace) * 0.24;
             if (horizonGlowAlpha > 0.01) {
                 const glow = ctx.createRadialGradient(
                     s.width * 0.5, s.height * 1.02, 12,
-                    s.width * 0.5, s.height * 1.02, s.height * 0.72
+                    s.width * 0.5, s.height * 1.02, s.height * 0.78
                 );
-                glow.addColorStop(0, `rgba(214, 242, 255, ${horizonGlowAlpha})`);
-                glow.addColorStop(0.55, `rgba(140, 213, 255, ${horizonGlowAlpha * 0.24})`);
+                glow.addColorStop(0, `rgba(225, 246, 255, ${horizonGlowAlpha})`);
+                glow.addColorStop(0.58, `rgba(142, 214, 255, ${horizonGlowAlpha * 0.26})`);
                 glow.addColorStop(1, "rgba(255,255,255,0)");
                 ctx.fillStyle = glow;
                 ctx.fillRect(0, 0, s.width, s.height);
@@ -1596,7 +1600,7 @@ function App() {
             });
             if (!metrics) return;
 
-            const alpha = getLayerFade(climb, 1050, 2350);
+            const alpha = getLayerFade(climb, 2100, 4300);
             if (alpha <= 0.01) return;
 
             ctx.save();
@@ -1614,7 +1618,7 @@ function App() {
             });
             if (!metrics) return;
 
-            const alpha = 0.95 * getLayerFade(climb, 700, 2200);
+            const alpha = 0.92 * getLayerFade(climb, 1500, 3600);
             if (alpha <= 0.01) return;
 
             ctx.save();
@@ -1632,7 +1636,7 @@ function App() {
             });
             if (!metrics) return;
 
-            const alpha = getLayerFade(climb, 380, 1500);
+            const alpha = getLayerFade(climb, 900, 2600);
             if (alpha <= 0.01) return;
 
             ctx.save();
