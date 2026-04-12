@@ -313,8 +313,8 @@ document.documentElement.style.setProperty("--game-font-stack", DISPLAY_FONT_STA
 const GROUND_LAYER_SPEED = 0.46;
 const MOUNTAINS_LAYER_SPEED = 0.28;
 const CLOUDS_LAYER_SPEED = 0.18;
-const SPACE_START = 2200;
-const STAR_FIELD_START = 2400;
+const SPACE_START = 900;
+const STAR_FIELD_START = 1050;
 const MAX_VISIBLE_SPACE_OBJECTS = 3;
 const BACKGROUND_MUSIC_BASE = "Sterrenvriendjes";
 const REPEAT_BUTTON_SRC = "herhaal-vraag.png";
@@ -328,7 +328,8 @@ const ASTRONAUT_FALL_TOTAL_FRAMES = 20;
 const ASTRONAUT_TOTAL_FRAMES = 16;
 const ASTRONAUT_JUMP_FRAME_SEQUENCE = [6, 7, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0];
 const ASTRONAUT_JUMP_MOTION_STOPS = [0.0, 0.08, 0.18, 0.42, 0.47, 0.5, 0.58, 0.68, 0.78, 0.88, 0.96, 1.0];
-const FALL_ANIMATION_FRAMES = 12;
+const FALL_ANIMATION_FRAMES = 18;
+const WRONG_FALL_START_OFFSET = 14;
 const FRAME_TIME_AT_60FPS = 1000 / 60;
 const RESPAWN_JUMP_FRAMES = 28;
 const AUDIO_MIME_TYPES = {
@@ -761,6 +762,28 @@ function loadAssets() {
         return asset;
     };
 
+    const createTransparentAsset = (src, padding = 8) => {
+        const img = new Image();
+        const asset = { img, canvas: null, ready: false };
+
+        img.onload = () => {
+            const off = document.createElement("canvas");
+            off.width = img.width;
+            off.height = img.height;
+            const ictx = off.getContext("2d", { willReadFrequently: true });
+            ictx.imageSmoothingEnabled = true;
+            ictx.imageSmoothingQuality = "high";
+            ictx.drawImage(img, 0, 0);
+
+            const bounds = getOpaqueBounds(off);
+            asset.canvas = bounds ? cropCanvas(off, bounds, padding) : off;
+            asset.ready = true;
+        };
+
+        img.src = src;
+        return asset;
+    };
+
     const createImageAsset = (src) => {
         const img = new Image();
         const asset = { img, ready: false };
@@ -775,12 +798,17 @@ function loadAssets() {
         ground: createBlackTransparentAsset("assets/bg-ground.png", 18),
         mountains: createBlackTransparentAsset("assets/bg-mountains.png", 20),
         clouds: createBlackTransparentAsset("assets/bg-clouds.png", 18),
-        rocket: createBlackTransparentAsset("assets/rocket.png", 18),
-        satellite: createBlackTransparentAsset("assets/satellite.png", 18),
-        ufo: createBlackTransparentAsset("assets/ufo.png", 18),
-        meteor: createBlackTransparentAsset("assets/meteorit.png", 18),
-        saturn: createBlackTransparentAsset("assets/planet1.png", 18),
-        moon: createBlackTransparentAsset("assets/moon.png", 18),
+        rocket: createTransparentAsset("assets/raket.png", 10),
+        satellite: createTransparentAsset("assets/sateliet.png", 10),
+        ufo: createTransparentAsset("assets/ufo.png", 10),
+        meteor: createTransparentAsset("assets/meteoor.png", 8),
+        planet01: createTransparentAsset("assets/planeet01.png", 8),
+        planet02: createTransparentAsset("assets/planeet02.png", 8),
+        planet03: createTransparentAsset("assets/planeet03.png", 8),
+        planet04: createTransparentAsset("assets/planeet04.png", 8),
+        planet05: createTransparentAsset("assets/planeet05.png", 8),
+        planet06: createTransparentAsset("assets/planeet06.png", 8),
+        planet07: createTransparentAsset("assets/planeet07.png", 8),
         astronaut: createAstronautAsset(ASTRONAUT_VIDEO_SRC),
         astronautFall: createAstronautAsset(ASTRONAUT_FALL_VIDEO_SRC, ASTRONAUT_FALL_TOTAL_FRAMES),
         repeatButton: createImageAsset(REPEAT_BUTTON_SRC)
@@ -879,46 +907,70 @@ function App() {
             stars: createTwinkleStars(40),
             spaceObjects: [
                 {
-                    id: "moon",
-                    type: "moon",
+                    id: "planet07",
+                    type: "planet07",
                     start: 980,
-                    end: 2260,
+                    end: 2100,
                     x: 0.78,
-                    y: 0.18,
+                    y: 0.17,
                     size: 230,
-                    rotation: 0.03,
+                    rotation: 0.02,
                     mirrorX: false,
                     driftX: -0.03,
-                    driftY: 0.015,
-                    depth: "back"
-                },
-                {
-                    id: "saturn",
-                    type: "saturn",
-                    start: 1680,
-                    end: 3300,
-                    x: 0.22,
-                    y: 0.24,
-                    size: 285,
-                    rotation: -0.16,
-                    mirrorX: false,
-                    driftX: 0.025,
-                    driftY: -0.01,
-                    depth: "back"
+                    driftY: 0.012,
+                    depth: "back",
+                    floatAmp: 8,
+                    phase: 0.2
                 },
                 {
                     id: "rocket1",
                     type: "rocket",
-                    start: 1160,
-                    end: 1700,
-                    fromX: -0.20,
-                    fromY: 0.78,
-                    toX: 0.40,
-                    toY: 0.24,
-                    size: 170,
-                    rotation: -0.72,
+                    start: 1140,
+                    end: 1740,
+                    fromX: -0.18,
+                    fromY: 0.86,
+                    toX: 0.42,
+                    toY: 0.22,
+                    size: 195,
+                    alignToPath: true,
+                    angleOffset: Math.PI / 2,
                     mirrorX: false,
-                    depth: "front"
+                    depth: "front",
+                    floatAmp: 5,
+                    phase: 0.6
+                },
+                {
+                    id: "meteor1",
+                    type: "meteor",
+                    start: 1400,
+                    end: 1820,
+                    fromX: 1.16,
+                    fromY: 0.10,
+                    toX: -0.14,
+                    toY: 0.58,
+                    size: 220,
+                    alignToPath: true,
+                    angleOffset: -Math.PI * 0.75,
+                    mirrorX: false,
+                    depth: "front",
+                    floatAmp: 3,
+                    phase: 1.1
+                },
+                {
+                    id: "planet03",
+                    type: "planet03",
+                    start: 1640,
+                    end: 2940,
+                    x: 0.22,
+                    y: 0.23,
+                    size: 292,
+                    rotation: -0.10,
+                    mirrorX: false,
+                    driftX: 0.024,
+                    driftY: -0.012,
+                    depth: "back",
+                    floatAmp: 10,
+                    phase: 1.4
                 },
                 {
                     id: "ufo1",
@@ -926,97 +978,177 @@ function App() {
                     start: 1860,
                     end: 2520,
                     fromX: 1.18,
-                    fromY: 0.31,
+                    fromY: 0.30,
                     toX: 0.55,
                     toY: 0.24,
-                    size: 190,
-                    rotation: 0.08,
-                    mirrorX: true,
-                    depth: "front"
+                    size: 205,
+                    rotation: 0.05,
+                    mirrorX: false,
+                    depth: "front",
+                    floatAmp: 6,
+                    phase: 2.0
                 },
                 {
                     id: "satellite1",
                     type: "satellite",
-                    start: 2320,
+                    start: 2280,
                     end: 3000,
-                    fromX: -0.18,
-                    fromY: 0.23,
-                    toX: 0.72,
-                    toY: 0.40,
-                    size: 185,
-                    rotation: 0.34,
+                    fromX: -0.16,
+                    fromY: 0.20,
+                    toX: 0.76,
+                    toY: 0.39,
+                    size: 210,
+                    rotation: 0.18,
                     mirrorX: false,
-                    depth: "back"
+                    depth: "back",
+                    floatAmp: 4,
+                    phase: 2.4
                 },
                 {
-                    id: "meteor1",
-                    type: "meteor",
-                    start: 1440,
-                    end: 1820,
-                    fromX: -0.22,
-                    fromY: 0.15,
-                    toX: 1.14,
-                    toY: 0.46,
-                    size: 225,
-                    rotation: 0.22,
+                    id: "planet04",
+                    type: "planet04",
+                    start: 2460,
+                    end: 3660,
+                    x: 0.74,
+                    y: 0.21,
+                    size: 270,
+                    rotation: -0.08,
                     mirrorX: false,
-                    depth: "front"
+                    driftX: -0.028,
+                    driftY: 0.014,
+                    depth: "back",
+                    floatAmp: 9,
+                    phase: 2.8
                 },
                 {
                     id: "rocket2",
                     type: "rocket",
                     start: 2760,
-                    end: 3360,
-                    fromX: 1.18,
-                    fromY: 0.74,
-                    toX: 0.50,
+                    end: 3380,
+                    fromX: 1.14,
+                    fromY: 0.84,
+                    toX: 0.46,
                     toY: 0.20,
-                    size: 185,
-                    rotation: -2.36,
-                    mirrorX: true,
-                    depth: "front"
+                    size: 205,
+                    alignToPath: true,
+                    angleOffset: Math.PI / 2,
+                    mirrorX: false,
+                    depth: "front",
+                    floatAmp: 5,
+                    phase: 3.2
+                },
+                {
+                    id: "planet06",
+                    type: "planet06",
+                    start: 3000,
+                    end: 3920,
+                    x: 0.24,
+                    y: 0.18,
+                    size: 218,
+                    rotation: 0.06,
+                    mirrorX: false,
+                    driftX: 0.020,
+                    driftY: 0.010,
+                    depth: "back",
+                    floatAmp: 8,
+                    phase: 3.7
                 },
                 {
                     id: "ufo2",
                     type: "ufo",
-                    start: 3140,
-                    end: 3760,
-                    fromX: -0.18,
-                    fromY: 0.34,
-                    toX: 0.30,
+                    start: 3180,
+                    end: 3820,
+                    fromX: -0.16,
+                    fromY: 0.36,
+                    toX: 0.34,
                     toY: 0.18,
-                    size: 178,
-                    rotation: -0.06,
+                    size: 190,
+                    rotation: -0.04,
                     mirrorX: false,
-                    depth: "back"
+                    depth: "back",
+                    floatAmp: 5,
+                    phase: 4.1
                 },
                 {
                     id: "satellite2",
                     type: "satellite",
                     start: 3400,
-                    end: 4020,
-                    fromX: 1.14,
-                    fromY: 0.26,
-                    toX: 0.26,
-                    toY: 0.42,
-                    size: 192,
-                    rotation: -0.30,
+                    end: 4080,
+                    fromX: 1.12,
+                    fromY: 0.24,
+                    toX: 0.28,
+                    toY: 0.40,
+                    size: 214,
+                    rotation: -0.14,
                     mirrorX: true,
-                    depth: "back"
+                    depth: "back",
+                    floatAmp: 4,
+                    phase: 4.6
                 },
                 {
                     id: "meteor2",
                     type: "meteor",
-                    start: 3500,
-                    end: 3900,
-                    fromX: 1.16,
-                    fromY: 0.12,
-                    toX: -0.18,
-                    toY: 0.44,
-                    size: 235,
-                    rotation: 2.92,
-                    mirrorX: true,
-                    depth: "front"
+                    start: 3520,
+                    end: 3940,
+                    fromX: 1.18,
+                    fromY: 0.08,
+                    toX: -0.16,
+                    toY: 0.56,
+                    size: 232,
+                    alignToPath: true,
+                    angleOffset: -Math.PI * 0.75,
+                    mirrorX: false,
+                    depth: "front",
+                    floatAmp: 3,
+                    phase: 5.0
+                },
+                {
+                    id: "planet01",
+                    type: "planet01",
+                    start: 3600,
+                    end: 4480,
+                    x: 0.72,
+                    y: 0.16,
+                    size: 242,
+                    rotation: 0.03,
+                    mirrorX: false,
+                    driftX: -0.018,
+                    driftY: 0.010,
+                    depth: "back",
+                    floatAmp: 7,
+                    phase: 5.4
+                },
+                {
+                    id: "planet02",
+                    type: "planet02",
+                    start: 3920,
+                    end: 4820,
+                    x: 0.28,
+                    y: 0.25,
+                    size: 226,
+                    rotation: -0.05,
+                    mirrorX: false,
+                    driftX: 0.018,
+                    driftY: -0.010,
+                    depth: "back",
+                    floatAmp: 8,
+                    phase: 5.8
+                },
+                {
+                    id: "planet05",
+                    type: "planet05",
+                    start: 4200,
+                    end: 5060,
+                    x: 0.78,
+                    y: 0.26,
+                    size: 176,
+                    rotation: 0.04,
+                    mirrorX: false,
+                    driftX: -0.016,
+                    driftY: 0.008,
+                    depth: "back",
+                    floatAmp: 7,
+                    phase: 6.2
                 }
             ]
         }
@@ -1692,12 +1824,11 @@ function App() {
         };
 
         const getSpaceAsset = (type) => {
-            if (type === "moon") return assetsRef.current.moon;
-            if (type === "saturn") return assetsRef.current.saturn;
             if (type === "rocket") return assetsRef.current.rocket;
             if (type === "ufo") return assetsRef.current.ufo;
             if (type === "satellite") return assetsRef.current.satellite;
             if (type === "meteor") return assetsRef.current.meteor;
+            if (typeof type === "string" && type.startsWith("planet")) return assetsRef.current[type];
             return null;
         };
 
@@ -1718,16 +1849,31 @@ function App() {
 
             const progress = easeInOut(progressRaw);
             const visibility = getVisibilityEnvelope(progressRaw);
+            const hasPath = typeof obj.fromX === "number" && typeof obj.toX === "number";
             let x = 0;
             let y = 0;
+            let rotation = obj.rotation || 0;
 
-            if (obj.type === "moon" || obj.type === "saturn") {
+            if (!hasPath) {
                 const driftAmt = progressRaw - 0.5;
-                x = s.width * (obj.x + driftAmt * obj.driftX);
-                y = s.height * (obj.y + driftAmt * obj.driftY);
+                x = s.width * (obj.x + driftAmt * (obj.driftX || 0));
+                y = s.height * (obj.y + driftAmt * (obj.driftY || 0));
             } else {
                 x = s.width * lerp(obj.fromX, obj.toX, progress);
                 y = s.height * lerp(obj.fromY, obj.toY, progress);
+
+                if (obj.alignToPath) {
+                    const dx = s.width * (obj.toX - obj.fromX);
+                    const dy = s.height * (obj.toY - obj.fromY);
+                    rotation = Math.atan2(dy, dx) + (obj.angleOffset || 0);
+                }
+            }
+
+            if (obj.floatAmp) {
+                const floatSpeed = obj.floatSpeed || 0.0015;
+                const phase = obj.phase || 0;
+                x += Math.cos(s.time.tick * floatSpeed + phase) * obj.floatAmp * 0.35;
+                y += Math.sin(s.time.tick * floatSpeed + phase) * obj.floatAmp;
             }
 
             const isFront = obj.depth === "front";
@@ -1739,7 +1885,7 @@ function App() {
                 progress: progressRaw,
                 visibility,
                 size: obj.size * (isFront ? 1.04 : 1),
-                rotation: obj.rotation,
+                rotation,
                 alpha: (isFront ? 0.96 : 0.84) * visibility,
                 mirrorX: !!obj.mirrorX
             };
@@ -1749,12 +1895,16 @@ function App() {
             const img = getImageFromAsset(imgAsset);
             if (!img || visible <= 0.01) return;
 
+            const aspect = img.width / Math.max(1, img.height);
+            const drawW = aspect >= 1 ? size : size * aspect;
+            const drawH = aspect >= 1 ? size / aspect : size;
+
             ctx.save();
             ctx.globalAlpha = visible;
             ctx.translate(x, y);
             ctx.rotate(rotation);
             ctx.scale(mirrorX ? -1 : 1, 1);
-            ctx.drawImage(img, -size / 2, -size / 2, size, size);
+            ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
             ctx.restore();
         };
 
@@ -2110,10 +2260,12 @@ function App() {
                         s.fallingPlatform.fallTiltDir = s.fallingPlatform.driftX >= 0 ? 1 : -1;
                         s.fallingPlatform.rotation = 0;
                         s.fallingPlatform.rotationSpeed = 0;
+                        s.fallingPlatform.astronautOffsetY = WRONG_FALL_START_OFFSET;
 
                         s.player.vy = 0;
                         s.player.jumpT = 1;
                         placePlayerOnPlatform();
+                        s.player.y += WRONG_FALL_START_OFFSET;
                         s.fallCameraStartY = s.cameraY;
                         s.fallCameraTargetY = s.cameraY;
 
@@ -2128,8 +2280,10 @@ function App() {
                 if (fallingPlatform) {
                     fallingPlatform.fallTime += dtFrames;
 
-                    const anticipationFrames = 8;
-                    const dropFrames = 56;
+                    const anticipationFrames = 10;
+                    const dropFrames = 84;
+
+                    const astronautFallOffset = fallingPlatform.astronautOffsetY || 0;
 
                     if (fallingPlatform.fallTime <= anticipationFrames) {
                         const tAnt = clamp(fallingPlatform.fallTime / anticipationFrames, 0, 1);
@@ -2142,7 +2296,7 @@ function App() {
                         fallingPlatform.alpha = 1;
 
                         s.player.x = fallingPlatform.x + fallingPlatform.w / 2;
-                        s.player.y = getPlayerContactY(fallingPlatform.y, s.circleR) - s.player.r;
+                        s.player.y = getPlayerContactY(fallingPlatform.y, s.circleR) - s.player.r + astronautFallOffset;
                         s.player.shadowScale = 1 - tAnt * 0.08;
                         s.player.squashX = 1 + tAnt * 0.05;
                         s.player.squashY = 1 - tAnt * 0.05;
@@ -2151,8 +2305,9 @@ function App() {
                         const rawDropT = Math.max(0, (fallingPlatform.fallTime - anticipationFrames) / dropFrames);
                         const cappedT = Math.min(rawDropT, 1);
                         const easedDrop = 1 - Math.pow(1 - cappedT, 3);
-                        const extraDrop = Math.max(0, rawDropT - 1) * (s.height * 0.8);
-                        const verticalDrop = 12 + easedDrop * (s.height * 1.08) + extraDrop;
+                        const extraDrop = Math.max(0, rawDropT - 1) * (s.height * 0.46);
+                        const verticalDrop = 12 + easedDrop * (s.height * 1.02) + extraDrop;
+                        const liftDuringDrop = Math.min(10, rawDropT * 10);
 
                         fallingPlatform.x = fallingPlatform.fallStartX;
                         fallingPlatform.y = fallingPlatform.fallStartY + verticalDrop;
@@ -2160,8 +2315,8 @@ function App() {
                         fallingPlatform.alpha = 1;
 
                         s.player.x = fallingPlatform.x + fallingPlatform.w / 2;
-                        s.player.y = getPlayerContactY(fallingPlatform.y, s.circleR) - s.player.r - Math.min(14, rawDropT * 14);
-                        s.player.shadowScale = Math.max(0.58, 1 - rawDropT * 0.18);
+                        s.player.y = getPlayerContactY(fallingPlatform.y, s.circleR) - s.player.r + astronautFallOffset - liftDuringDrop;
+                        s.player.shadowScale = Math.max(0.62, 1 - rawDropT * 0.14);
                         s.player.squashX = 1;
                         s.player.squashY = 1;
                         s.player.rotation = 0;
