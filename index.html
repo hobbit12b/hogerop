@@ -318,12 +318,13 @@ const STAR_FIELD_START = 1550;
 const MAX_VISIBLE_SPACE_OBJECTS = 1;
 const SPACE_RANDOM_START_SCORE = 16;
 const SPACE_RANDOM_INTERVAL = 5;
+const ROCKET_FLYBY_START_SCORE = 8;
+const ROCKET_FLYBY_INTERVAL = 4;
 const FIXED_SPACE_SCORE_EVENTS = Object.freeze({
     5: "planet07",
     11: "satellite"
 });
 const RANDOM_SPACE_TYPES = Object.freeze([
-    "rocket",
     "meteor",
     "ufo",
     "planet01",
@@ -932,6 +933,7 @@ function App() {
         deco: {
             stars: createTwinkleStars(40),
             activeSpaceObject: null,
+            activeRocketFlybys: [],
             pendingSpaceQueue: [],
             lastRandomSpaceType: null
         }
@@ -1263,6 +1265,7 @@ function App() {
         s.fallingPlatform = null;
         s.lastPairCenterX = s.width * 0.5;
         s.deco.activeSpaceObject = null;
+        s.deco.activeRocketFlybys = [];
         s.deco.pendingSpaceQueue = [];
         s.deco.lastRandomSpaceType = null;
         setTargetLetter("");
@@ -1305,6 +1308,7 @@ function App() {
         s.time.idleFrameClock = 0;
         s.lastPairCenterX = s.width * 0.5;
         s.deco.activeSpaceObject = null;
+        s.deco.activeRocketFlybys = [];
         s.deco.pendingSpaceQueue = [];
         s.deco.lastRandomSpaceType = null;
 
@@ -1554,16 +1558,21 @@ function App() {
         const drawCloudLayer = (s, climb) => {
             const metrics = getLayerMetrics(assetsRef.current.clouds, s, climb, CLOUDS_LAYER_SPEED, {
                 anchor: "top",
-                heightRatio: 1,
+                heightRatio: 0.84,
                 widthBleed: 0.02,
-                baseOffset: -s.height * 0.05
+                baseOffset: -s.height * 0.28
             });
             if (!metrics) return;
 
             const alpha = 0.92 * getLayerFade(climb, 1900, 4000);
             if (alpha <= 0.01) return;
 
+            const clipBottom = s.height * 0.36;
+
             ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, s.width, clipBottom);
+            ctx.clip();
             ctx.globalAlpha = alpha;
             ctx.drawImage(metrics.img, metrics.x, metrics.y, metrics.drawW, metrics.drawH);
             ctx.restore();
@@ -1657,6 +1666,7 @@ function App() {
 
         const createSpaceObjectInstance = (type, startTick = 0, spawnClimb = 0, spawnScore = 0) => {
             const nextTriggerScore = getNextSpaceTriggerScore(spawnScore);
+            const panDirection = Math.random() < 0.5 ? -1 : 1;
             const base = {
                 type,
                 startTick,
@@ -1679,17 +1689,24 @@ function App() {
                 driftSpeedX: 0.0036,
                 driftSpeedY: 0.0028,
                 levelDropPx: 16,
-                flybyDuration: 250
+                flybyDuration: 250,
+                panXPerTick: 0,
+                panYPerTick: 0,
+                bobAmpY: 6,
+                bobSpeedY: 0.0024,
+                bobAmpX: 3,
+                bobSpeedX: 0.0017,
+                fadeFloor: 0.06
             };
 
             const planetVariants = {
-                planet01: { size: 228, x: 0.76, y: 0.18, entryXOffset: 0.06, entryYOffset: -0.04, driftAmpX: 10, driftAmpY: 7, driftSpeedX: 0.0031, driftSpeedY: 0.0024, rotation: 0.02, rotationDrift: 0.012, levelDropPx: 18 },
-                planet02: { size: 218, x: 0.28, y: 0.24, entryXOffset: -0.06, entryYOffset: -0.05, driftAmpX: 9, driftAmpY: 6, driftSpeedX: 0.0030, driftSpeedY: 0.0023, rotation: -0.03, rotationDrift: 0.012, levelDropPx: 18 },
-                planet03: { size: 280, x: 0.68, y: 0.21, entryXOffset: 0.05, entryYOffset: -0.04, driftAmpX: 11, driftAmpY: 8, driftSpeedX: 0.0028, driftSpeedY: 0.0022, rotation: -0.05, rotationDrift: 0.013, levelDropPx: 20 },
-                planet04: { size: 246, x: 0.30, y: 0.17, entryXOffset: -0.05, entryYOffset: -0.04, driftAmpX: 10, driftAmpY: 7, driftSpeedX: 0.0031, driftSpeedY: 0.0025, rotation: 0.04, rotationDrift: 0.012, levelDropPx: 18 },
-                planet05: { size: 176, x: 0.73, y: 0.25, entryXOffset: 0.06, entryYOffset: -0.03, driftAmpX: 8, driftAmpY: 6, driftSpeedX: 0.0033, driftSpeedY: 0.0025, rotation: 0.03, rotationDrift: 0.011, levelDropPx: 16 },
-                planet06: { size: 210, x: 0.34, y: 0.18, entryXOffset: -0.06, entryYOffset: -0.03, driftAmpX: 9, driftAmpY: 7, driftSpeedX: 0.0032, driftSpeedY: 0.0024, rotation: 0.04, rotationDrift: 0.012, levelDropPx: 18 },
-                planet07: { size: 236, x: 0.78, y: 0.16, entryXOffset: 0.07, entryYOffset: -0.04, driftAmpX: 9, driftAmpY: 6, driftSpeedX: 0.0029, driftSpeedY: 0.0022, rotation: 0.015, rotationDrift: 0.010, levelDropPx: 18 }
+                planet01: { size: 228, x: 0.76, y: 0.18, entryXOffset: 0.06, entryYOffset: -0.04, panXPerTick: -0.065 * panDirection, bobAmpY: 7, bobSpeedY: 0.0020, bobAmpX: 4, bobSpeedX: 0.0016, rotation: 0.02, rotationDrift: 0.012, levelDropPx: 44 },
+                planet02: { size: 218, x: 0.28, y: 0.24, entryXOffset: -0.06, entryYOffset: -0.05, panXPerTick: 0.060 * panDirection, bobAmpY: 6, bobSpeedY: 0.0021, bobAmpX: 3, bobSpeedX: 0.0015, rotation: -0.03, rotationDrift: 0.012, levelDropPx: 42 },
+                planet03: { size: 280, x: 0.68, y: 0.21, entryXOffset: 0.05, entryYOffset: -0.04, panXPerTick: -0.058 * panDirection, bobAmpY: 8, bobSpeedY: 0.0019, bobAmpX: 4, bobSpeedX: 0.0014, rotation: -0.05, rotationDrift: 0.013, levelDropPx: 46 },
+                planet04: { size: 246, x: 0.30, y: 0.17, entryXOffset: -0.05, entryYOffset: -0.04, panXPerTick: 0.063 * panDirection, bobAmpY: 7, bobSpeedY: 0.0020, bobAmpX: 4, bobSpeedX: 0.0015, rotation: 0.04, rotationDrift: 0.012, levelDropPx: 44 },
+                planet05: { size: 176, x: 0.73, y: 0.25, entryXOffset: 0.06, entryYOffset: -0.03, panXPerTick: -0.070 * panDirection, bobAmpY: 6, bobSpeedY: 0.0022, bobAmpX: 3, bobSpeedX: 0.0016, rotation: 0.03, rotationDrift: 0.011, levelDropPx: 40 },
+                planet06: { size: 210, x: 0.34, y: 0.18, entryXOffset: -0.06, entryYOffset: -0.03, panXPerTick: 0.066 * panDirection, bobAmpY: 7, bobSpeedY: 0.0021, bobAmpX: 4, bobSpeedX: 0.0015, rotation: 0.04, rotationDrift: 0.012, levelDropPx: 42 },
+                planet07: { size: 236, x: 0.78, y: 0.16, entryXOffset: 0.07, entryYOffset: -0.04, panXPerTick: -0.054 * panDirection, bobAmpY: 6, bobSpeedY: 0.0019, bobAmpX: 3, bobSpeedX: 0.0014, rotation: 0.015, rotationDrift: 0.010, levelDropPx: 44 }
             };
 
             if (planetVariants[type]) {
@@ -1710,13 +1727,14 @@ function App() {
                     y: 0.24,
                     entryXOffset: 0.08,
                     entryYOffset: -0.03,
-                    driftAmpX: 8,
-                    driftAmpY: 5,
-                    driftSpeedX: 0.0040,
-                    driftSpeedY: 0.0030,
+                    panXPerTick: -0.045,
+                    bobAmpY: 5,
+                    bobSpeedY: 0.0025,
+                    bobAmpX: 3,
+                    bobSpeedX: 0.0018,
                     rotation: 0.12,
                     rotationDrift: 0.02,
-                    levelDropPx: 14
+                    levelDropPx: 36
                 };
             }
 
@@ -1728,14 +1746,13 @@ function App() {
                     size: 198,
                     fromX: -0.16,
                     fromY: 0.90,
-                    cpX: 0.20,
-                    cpY: 0.60,
-                    toX: 0.92,
-                    toY: -0.12,
+                    toX: 1.04,
+                    toY: -0.18,
                     alignToPath: true,
                     angleOffset: Math.PI / 2,
-                    flybyDuration: 230,
-                    levelDropPx: 0
+                    flybyDuration: 250,
+                    levelDropPx: 0,
+                    fadeFloor: 1
                 };
             }
 
@@ -1747,14 +1764,13 @@ function App() {
                     size: 214,
                     fromX: 1.10,
                     fromY: 0.04,
-                    cpX: 0.66,
-                    cpY: 0.22,
-                    toX: -0.16,
-                    toY: 0.88,
+                    toX: -0.20,
+                    toY: 0.94,
                     alignToPath: true,
                     angleOffset: -Math.PI * 0.75,
-                    flybyDuration: 210,
-                    levelDropPx: 0
+                    flybyDuration: 220,
+                    levelDropPx: 0,
+                    fadeFloor: 1
                 };
             }
 
@@ -1767,13 +1783,14 @@ function App() {
                     y: 0.22,
                     entryXOffset: -0.08,
                     entryYOffset: -0.03,
-                    driftAmpX: 11,
-                    driftAmpY: 6,
-                    driftSpeedX: 0.0041,
-                    driftSpeedY: 0.0032,
+                    panXPerTick: 0.080,
+                    bobAmpY: 6,
+                    bobSpeedY: 0.0027,
+                    bobAmpX: 4,
+                    bobSpeedX: 0.0020,
                     rotation: 0.03,
                     rotationDrift: 0.018,
-                    levelDropPx: 15
+                    levelDropPx: 38
                 };
             }
 
@@ -1811,6 +1828,20 @@ function App() {
             activateNextSpaceObject(s, nextType);
         };
 
+        const triggerRocketFlybyForScore = (s) => {
+            if (s.score < ROCKET_FLYBY_START_SCORE) return;
+            if ((s.score - ROCKET_FLYBY_START_SCORE) % ROCKET_FLYBY_INTERVAL !== 0) return;
+
+            const activeFlybys = Array.isArray(s.deco.activeRocketFlybys) ? s.deco.activeRocketFlybys : [];
+            const hasRocketInFlight = activeFlybys.some((obj) => obj && obj.type === "rocket");
+            if (hasRocketInFlight) return;
+
+            s.deco.activeRocketFlybys = [
+                ...activeFlybys,
+                createSpaceObjectInstance("rocket", s.time.tick, getCurrentClimb(s), s.score)
+            ];
+        };
+
         const getSpaceObjectWorldState = (obj, s) => {
             if (!obj) return null;
 
@@ -1819,45 +1850,56 @@ function App() {
             const scoreWindow = Math.max(1, (obj.endScore || ((obj.spawnScore || 0) + 1)) - (obj.spawnScore || 0));
             const fadeProgress = clamp(scoreDelta / scoreWindow, 0, 1);
             const entranceProgress = smoothStep(0, 1, clamp(elapsedTicks / 42, 0, 1));
-            const fadeDown = lerp(1, 0.06, smoothStep(0, 1, fadeProgress));
+            const fadeFloor = obj.fadeFloor ?? 0.06;
+            const fadeDown = lerp(1, fadeFloor, smoothStep(0, 1, fadeProgress));
 
             let x = 0;
             let y = 0;
             let rotation = obj.rotation || 0;
             let visibility = entranceProgress * fadeDown;
             let progress = fadeProgress;
+            let outOfView = false;
 
             if (obj.mode === "flyby") {
                 const flightProgress = clamp(elapsedTicks / Math.max(1, obj.flybyDuration || 240), 0, 1);
-                const cpX = obj.cpX ?? lerp(obj.fromX, obj.toX, 0.5);
-                const cpY = obj.cpY ?? lerp(obj.fromY, obj.toY, 0.5);
+                const fromX = obj.fromX ?? -0.1;
+                const fromY = obj.fromY ?? 0.5;
+                const toX = obj.toX ?? 1.1;
+                const toY = obj.toY ?? 0.5;
 
-                x = s.width * quadraticBezier(obj.fromX, cpX, obj.toX, flightProgress);
-                y = s.height * quadraticBezier(obj.fromY, cpY, obj.toY, flightProgress);
+                x = s.width * lerp(fromX, toX, flightProgress);
+                y = s.height * lerp(fromY, toY, flightProgress);
                 progress = flightProgress;
-                visibility = smoothStep(0, 1, clamp(elapsedTicks / 12, 0, 1));
+                visibility = smoothStep(0, 1, clamp(elapsedTicks / 10, 0, 1));
 
                 if (obj.alignToPath) {
-                    const dx = s.width * quadraticBezierTangent(obj.fromX, cpX, obj.toX, flightProgress);
-                    const dy = s.height * quadraticBezierTangent(obj.fromY, cpY, obj.toY, flightProgress);
+                    const dx = s.width * (toX - fromX);
+                    const dy = s.height * (toY - fromY);
                     rotation = Math.atan2(dy, dx) + (obj.angleOffset || 0);
                 }
+
+                outOfView = (
+                    x < -(obj.size || 220) * 1.35 ||
+                    x > s.width + (obj.size || 220) * 1.35 ||
+                    y < -(obj.size || 220) * 1.35 ||
+                    y > s.height + (obj.size || 220) * 1.35 ||
+                );
             } else {
                 const phase = obj.phase || 0;
                 const baseX = s.width * ((obj.x ?? 0.5) + (1 - entranceProgress) * (obj.entryXOffset || 0));
                 const baseY = s.height * ((obj.y ?? 0.22) + (1 - entranceProgress) * (obj.entryYOffset || 0));
-                const driftSpeedX = obj.driftSpeedX || 0.0034;
-                const driftSpeedY = obj.driftSpeedY || 0.0026;
-                const driftAmpX = obj.driftAmpX || 0;
-                const driftAmpY = obj.driftAmpY || 0;
+                const panX = elapsedTicks * (obj.panXPerTick || 0);
+                const panY = elapsedTicks * (obj.panYPerTick || 0);
+                const bobAmpY = obj.bobAmpY || 0;
+                const bobSpeedY = obj.bobSpeedY || 0.0024;
+                const bobAmpX = obj.bobAmpX || 0;
+                const bobSpeedX = obj.bobSpeedX || 0.0018;
 
-                x = baseX;
-                x += Math.sin(elapsedTicks * driftSpeedX + phase) * driftAmpX;
-                x += Math.cos(elapsedTicks * driftSpeedX * 0.57 + phase * 0.63) * driftAmpX * 0.35;
+                x = baseX + panX;
+                x += Math.sin(elapsedTicks * bobSpeedX + phase) * bobAmpX;
 
-                y = baseY;
-                y += Math.cos(elapsedTicks * driftSpeedY + phase * 1.07) * driftAmpY * 0.62;
-                y += Math.sin(elapsedTicks * driftSpeedY * 0.61 + phase * 0.45) * driftAmpY * 0.38;
+                y = baseY + panY;
+                y += Math.sin(elapsedTicks * bobSpeedY + phase * 1.07) * bobAmpY;
                 y += scoreDelta * (obj.levelDropPx || 14);
 
                 rotation = (obj.rotation || 0) + Math.sin(elapsedTicks * 0.0022 + phase) * (obj.rotationDrift || 0);
@@ -1872,7 +1914,8 @@ function App() {
                 size: obj.size * (isFront ? 1.03 : 1),
                 rotation,
                 alpha: (isFront ? 0.96 : 0.86) * visibility,
-                mirrorX: !!obj.mirrorX
+                mirrorX: !!obj.mirrorX,
+                outOfView
             };
         };
 
@@ -1881,29 +1924,41 @@ function App() {
             if (visibleSpace <= 0.01) return;
 
             const active = s.deco.activeSpaceObject;
-            if (!active) return;
-
-            const state = getSpaceObjectWorldState(active, s);
-            if (!state) return;
-
-            if (
-                state.x < -state.size * 1.3 ||
-                state.x > s.width + state.size * 1.3 ||
-                state.y < -state.size * 1.3 ||
-                state.y > s.height + state.size * 1.3
-            ) {
-                return;
+            if (active) {
+                const state = getSpaceObjectWorldState(active, s);
+                if (state && !state.outOfView) {
+                    drawFloatingAsset(
+                        getSpaceAsset(active.type),
+                        visibleSpace * state.alpha,
+                        state.x,
+                        state.y,
+                        state.size,
+                        state.rotation,
+                        state.mirrorX
+                    );
+                }
             }
 
-            drawFloatingAsset(
-                getSpaceAsset(active.type),
-                visibleSpace * state.alpha,
-                state.x,
-                state.y,
-                state.size,
-                state.rotation,
-                state.mirrorX
-            );
+            const activeRocketFlybys = Array.isArray(s.deco.activeRocketFlybys) ? s.deco.activeRocketFlybys : [];
+            const remainingRocketFlybys = [];
+
+            activeRocketFlybys.forEach((obj) => {
+                const state = getSpaceObjectWorldState(obj, s);
+                if (!state || state.outOfView) return;
+
+                remainingRocketFlybys.push(obj);
+                drawFloatingAsset(
+                    getSpaceAsset(obj.type),
+                    visibleSpace * state.alpha,
+                    state.x,
+                    state.y,
+                    state.size,
+                    state.rotation,
+                    state.mirrorX
+                );
+            });
+
+            s.deco.activeRocketFlybys = remainingRocketFlybys;
         };
 
         const drawAtmosphereOverlay = (s, climb) => {
@@ -2191,6 +2246,7 @@ function App() {
                         s.score += 1;
                         setScore(s.score);
                         triggerSpaceAssetForScore(s);
+                        triggerRocketFlybyForScore(s);
 
                         prepareNextRound();
                         s.nextPlatforms = s.pendingNextPlatforms;
