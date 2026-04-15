@@ -893,7 +893,10 @@ function App() {
     const playBackgroundMusic = useCallback(() => {
         const audio = backgroundMusicRef.current;
         if (!audio || !musicEnabled || document.hidden) return;
-        audio.play().catch((error) => { console.warn("Achtergrondmuziek kon niet afspelen.", error); });
+        audio.muted = false;
+        audio.play().catch((error) => {
+            console.warn("Achtergrondmuziek kon niet afspelen.", error);
+        });
     }, [musicEnabled]);
     const pauseBackgroundMusic = useCallback(() => {
         const audio = backgroundMusicRef.current;
@@ -944,59 +947,65 @@ function App() {
     }, []);
 
     useEffect(() => {
+        const resumeMusicIfNeeded = () => {
+            const audio = backgroundMusicRef.current;
+            const s = stateRef.current;
+            if (!audio) return;
+            if (document.hidden) return;
+            if (!musicEnabled) return;
+            if (!s || s.gameState === "start") return;
+
+            audio.muted = false;
+            audio.play().catch((error) => {
+                console.warn("Achtergrondmuziek kon niet opnieuw starten.", error);
+            });
+        };
+
         const handleVisibilityChange = () => {
             const audio = backgroundMusicRef.current;
             if (!audio) return;
 
             if (document.hidden) {
-                musicWasPlayingBeforeHideRef.current = musicEnabled && !audio.paused;
+                musicWasPlayingBeforeHideRef.current = !audio.paused;
                 audio.pause();
                 return;
             }
 
-            if (musicEnabled && musicWasPlayingBeforeHideRef.current) {
-                audio.currentTime = Math.max(0, audio.currentTime);
-                audio.play().catch((error) => {
-                    console.warn("Achtergrondmuziek kon niet opnieuw starten.", error);
-                });
-            }
+            resumeMusicIfNeeded();
         };
 
         const handleBlur = () => {
             const audio = backgroundMusicRef.current;
             if (!audio) return;
-            musicWasPlayingBeforeHideRef.current = musicEnabled && !audio.paused;
+            musicWasPlayingBeforeHideRef.current = !audio.paused;
             audio.pause();
         };
 
         const handleFocus = () => {
-            const audio = backgroundMusicRef.current;
-            if (!audio) return;
-            if (document.hidden) return;
+            resumeMusicIfNeeded();
+        };
 
-            if (musicEnabled && musicWasPlayingBeforeHideRef.current) {
-                audio.currentTime = Math.max(0, audio.currentTime);
-                audio.play().catch((error) => {
-                    console.warn("Achtergrondmuziek kon niet opnieuw starten.", error);
-                });
-            }
+        const handlePageShow = () => {
+            resumeMusicIfNeeded();
         };
 
         const handlePageHide = () => {
             const audio = backgroundMusicRef.current;
             if (!audio) return;
-            musicWasPlayingBeforeHideRef.current = musicEnabled && !audio.paused;
+            musicWasPlayingBeforeHideRef.current = !audio.paused;
             audio.pause();
         };
 
         document.addEventListener("visibilitychange", handleVisibilityChange);
         window.addEventListener("pagehide", handlePageHide);
+        window.addEventListener("pageshow", handlePageShow);
         window.addEventListener("blur", handleBlur);
         window.addEventListener("focus", handleFocus);
 
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
             window.removeEventListener("pagehide", handlePageHide);
+            window.removeEventListener("pageshow", handlePageShow);
             window.removeEventListener("blur", handleBlur);
             window.removeEventListener("focus", handleFocus);
         };
